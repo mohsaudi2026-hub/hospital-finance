@@ -135,6 +135,9 @@ export const FISCAL_YEAR_START_MONTH = 7; // July
 // هاتف الدعم الفني المعتمد
 export const SUPPORT_PHONE = '01017799580';
 
+// الرابط الرسمي للمنظومة
+export const SYSTEM_APP_URL = 'https://hospital-finance-amber.vercel.app';
+
 // نطاقات الإقفال المالي الشهري
 export const LOCK_SCOPES = {
   ALL: 'all',

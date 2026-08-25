@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserRole } from '@/lib/hooks/useUserRole'
-import { ROLE_LABELS, SUPPORT_PHONE, type RoleName } from '@/lib/constants'
+import { ROLE_LABELS, SUPPORT_PHONE, SYSTEM_APP_URL, type RoleName } from '@/lib/constants'
 import { UserAvatar } from '@/components/ui/UserAvatar'
 import * as XLSX from 'xlsx'
 
@@ -108,7 +108,7 @@ export default function UsersManagementPage() {
         'رقم الهاتف المحمول': u.phone || '—',
         'حالة الحساب': u.is_active ? 'نشط ومفعل' : 'معطل',
         'تغيير كلمة المرور عند أول دخول': u.must_change_password ? 'إلزامي (نعم)' : 'تم التغيير',
-        'رابط الدخول المباشر للمنظومة': 'https://hospital-finance.vercel.app/login',
+        'رابط الدخول المباشر للمنظومة': `${SYSTEM_APP_URL}/login`,
       }
     })
 
@@ -1207,7 +1207,15 @@ export default function UsersManagementPage() {
               </div>
               <div className="flex justify-between items-center pt-1 text-[11px] text-gray-500">
                 <span>رابط الدخول:</span>
-                <span className="font-mono text-blue-600" dir="ltr">http://localhost:3000/login</span>
+                <a
+                  href={`${SYSTEM_APP_URL}/login`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-blue-600 hover:underline"
+                  dir="ltr"
+                >
+                  {SYSTEM_APP_URL}/login
+                </a>
               </div>
             </div>
 
@@ -1217,7 +1225,7 @@ export default function UsersManagementPage() {
                 type="button"
                 onClick={() => {
                   const defaultPwd = getDefaultPassword(credentialModalUser.role_name, credentialModalUser.email)
-                  const msg = `🏛️ جمهورية مصر العربية — وزارة الصحة والسكان\nمنظومة المتابعة المالية الموحدة للمستشفيات\n\nتحية طيبة وبعد،\nنرسل لسيادتكم بيانات الدخول الرسمية الخاصة بكم على المنظومة:\n\n🏥 المنشأة: ${credentialModalUser.facility_name || 'ديوان عام الوزارة'}\n👤 الاسم: ${credentialModalUser.full_name}\n🏷️ الدور: ${credentialModalUser.role_name ? ROLE_LABELS[credentialModalUser.role_name] : ''}\n✉️ البريد الإلكتروني: ${credentialModalUser.email}\n🔑 كلمة المرور الافتراضية: ${defaultPwd}\n🌐 رابط الدخول: http://localhost:3000/login\n\n⚠️ يرجى تغيير كلمة المرور فور أول تسجيل دخول للحفاظ على سرية وأمان الحساب.`
+                  const msg = `🏛️ جمهورية مصر العربية — وزارة الصحة والسكان\nمنظومة المتابعة المالية الموحدة للمستشفيات\n\nتحية طيبة وبعد،\nنرسل لسيادتكم بيانات الدخول الرسمية الخاصة بكم على المنظومة:\n\n🏥 المنشأة: ${credentialModalUser.facility_name || 'ديوان عام الوزارة'}\n👤 الاسم: ${credentialModalUser.full_name}\n🏷️ الدور: ${credentialModalUser.role_name ? ROLE_LABELS[credentialModalUser.role_name] : ''}\n✉️ البريد الإلكتروني: ${credentialModalUser.email}\n🔑 كلمة المرور الافتراضية: ${defaultPwd}\n🌐 رابط الدخول المباشر: ${SYSTEM_APP_URL}/login\n\n⚠️ يرجى تغيير كلمة المرور فور أول تسجيل دخول للحفاظ على سرية وأمان الحساب.`
                   navigator.clipboard.writeText(msg)
                   setCopiedDeliveryText(true)
                   setTimeout(() => setCopiedDeliveryText(false), 2500)

@@ -90,7 +90,7 @@ export default function UsersManagementPage() {
   const [showSupportModal, setShowSupportModal] = useState(false)
   const [supportUserTarget, setSupportUserTarget] = useState<UserItem | null>(null)
 
-  // Export Credentials to Excel Handler
+  // Export Credentials to Excel Handler (شامل كلمات المرور الافتراضية والتعليمات)
   function handleExportCredentials() {
     if (filteredUsers.length === 0) return
 
@@ -101,34 +101,70 @@ export default function UsersManagementPage() {
         'اسم المنشأة الطبية': u.facility_name || 'ديوان عام الوزارة',
         'كود المنشأة': u.facility_code || '—',
         'اسم الموظف المسجل': u.full_name || '—',
-        'الدور والصلاحية': u.role_name ? (ROLE_LABELS[u.role_name] || u.role_name) : 'بدون دور',
+        'الدور الوظيفي والصلاحية': u.role_name ? (ROLE_LABELS[u.role_name] || u.role_name) : 'بدون دور',
         'البريد الإلكتروني (اسم المستخدم)': u.email || '—',
         'كلمة المرور الافتراضية للتسليم': defaultPwd,
-        'الرقم القومي': u.national_id || '—',
-        'رقم الهاتف': u.phone || '—',
-        'الحالة': u.is_active ? 'نشط' : 'معطل',
-        'رابط الدخول المباشر': 'http://localhost:3000/login',
+        'الرقم القومي (14 رقم)': u.national_id || '—',
+        'رقم الهاتف المحمول': u.phone || '—',
+        'حالة الحساب': u.is_active ? 'نشط ومفعل' : 'معطل',
+        'تغيير كلمة المرور عند أول دخول': u.must_change_password ? 'إلزامي (نعم)' : 'تم التغيير',
+        'رابط الدخول المباشر للمنظومة': 'https://hospital-finance.vercel.app/login',
       }
     })
 
-    const ws = XLSX.utils.json_to_sheet(rows)
-    ws['!cols'] = [
+    const wsUsers = XLSX.utils.json_to_sheet(rows)
+    wsUsers['!cols'] = [
       { wch: 6 },
-      { wch: 32 },
+      { wch: 34 },
       { wch: 14 },
-      { wch: 28 },
-      { wch: 22 },
-      { wch: 32 },
+      { wch: 30 },
       { wch: 24 },
+      { wch: 34 },
+      { wch: 28 },
+      { wch: 20 },
       { wch: 18 },
-      { wch: 16 },
-      { wch: 10 },
-      { wch: 32 },
+      { wch: 14 },
+      { wch: 24 },
+      { wch: 38 },
     ]
 
+    // Sheet 2: دليل كلمات المرور الافتراضية والقواعد الأمنية
+    const guideRows = [
+      {
+        'الدور الوظيفي': 'مدير المستشفى (Hospital Admin)',
+        'كلمة المرور الافتراضية': 'Hospital@123456',
+        'الصلاحيات': 'إدارة مستخدمي المستشفى، مراجعة التقارير، والاعتماد المالي',
+      },
+      {
+        'الدور الوظيفي': 'مسؤول الإدخال المالي (Data Entry)',
+        'كلمة المرور الافتراضية': 'Entry@123456',
+        'الصلاحيات': 'تسجيل الإيرادات الـ 8، التجنيب، الشراء الموحد، وسداد العقود',
+      },
+      {
+        'الدور الوظيفي': 'مراجع الحسابات (Hospital Viewer)',
+        'كلمة المرور الافتراضية': 'Viewer@123456',
+        'الصلاحيات': 'استعراض وطباعة كافة التقارير والسجلات المالية الخاصة بالمنشأة',
+      },
+      {
+        'الدور الوظيفي': 'المكتب الفني للوزير (Ministry Viewer)',
+        'كلمة المرور الافتراضية': 'Viewer@123456',
+        'الصلاحيات': 'رؤية بانورامية ورقابة شاملة لكافة محافظات ومستشفيات الجمهورية',
+      },
+      {
+        'الدور الوظيفي': 'مدير المنظومة (Super Admin)',
+        'كلمة المرور الافتراضية': 'Admin@123456',
+        'الصلاحيات': 'إدارة كافة المنشآت والمستخدمين واللوائح وفتح الإقفالات الاستثنائية',
+      },
+    ]
+    const wsGuide = XLSX.utils.json_to_sheet(guideRows)
+    wsGuide['!cols'] = [{ wch: 32 }, { wch: 26 }, { wch: 60 }]
+
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'بيانات الدخول للتسليم')
-    XLSX.writeFile(wb, `كشف_بيانات_دخول_${facilityName || 'المستخدمين'}_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    XLSX.utils.book_append_sheet(wb, wsUsers, 'كشف حسابات وكلمات المرور')
+    XLSX.utils.book_append_sheet(wb, wsGuide, 'دليل كلمات المرور الرسمية')
+
+    const dateStr = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(wb, `كشف_حسابات_المستخدمين_وكلمات_المرور_وزارة_الصحة_${dateStr}.xlsx`)
   }
 
   // Add User Modal
@@ -350,11 +386,14 @@ export default function UsersManagementPage() {
           <button
             onClick={handleExportCredentials}
             disabled={filteredUsers.length === 0}
-            className="btn btn-outline text-xs flex items-center gap-2 bg-white hover:bg-emerald-50 hover:border-emerald-600 hover:text-emerald-800 shadow-xs transition-all font-bold"
-            title="تصدير كشف بيانات الدخول"
+            className="btn btn-outline text-xs flex items-center gap-2 bg-white hover:bg-emerald-50 hover:border-emerald-600 hover:text-emerald-800 shadow-xs transition-all font-bold border-emerald-500 text-emerald-900"
+            title="تصدير كشف حسابات المستخدمين وكلمات المرور الافتراضية للتسليم"
           >
             <span>📥</span>
-            <span>{isSuperAdmin ? 'كشف بيانات الدخول لكافة المستشفيات (Excel)' : 'تصدير بيانات الدخول (Excel)'}</span>
+            <span>{isSuperAdmin ? 'استخراج كشف المستخدمين وكلمات المرور (Excel)' : 'تصدير بيانات الدخول (Excel)'}</span>
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold">
+              {filteredUsers.length}
+            </span>
           </button>
 
           {isSuperAdmin && (

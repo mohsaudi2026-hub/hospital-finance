@@ -5,6 +5,11 @@ export const metadata: Metadata = {
   title: 'منصة البيانات المالية للمستشفيات — وزارة الصحة والسكان',
   description: 'منصة إلكترونية لتجميع ومتابعة البيانات المالية لمستشفيات وزارة الصحة والسكان المصرية',
   keywords: 'وزارة الصحة, مستشفيات, بيانات مالية, إيرادات, مصروفات',
+  icons: {
+    icon: '/images/mohp-logo.png',
+    shortcut: '/images/mohp-logo.png',
+    apple: '/images/mohp-logo.png',
+  },
 }
 
 export default function RootLayout({

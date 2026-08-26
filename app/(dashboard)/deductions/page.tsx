@@ -7,6 +7,7 @@ import { MonthSelector } from '@/components/ui/MonthSelector'
 import { formatCurrency, formatCurrencyShort } from '@/lib/utils/currency'
 import { toFirstOfMonth, formatMonthArabic, getFiscalYear, parseMonthDate, getFiscalQuarter } from '@/lib/utils/date'
 import { DEDUCTION_TYPES, DEDUCTION_TYPE_LABELS, SUPPORT_PHONE, type DeductionType } from '@/lib/constants'
+import { AdjustmentModal } from '@/components/ui/AdjustmentModal'
 
 interface DeductionEntry {
   id: string
@@ -80,6 +81,8 @@ export default function DeductionsPage() {
   const [deadlineInfo, setDeadlineInfo] = useState<MonthDeadlineInfo | null>(null)
   const [showSupportModal, setShowSupportModal] = useState(false)
   const [superAdminEditMode, setSuperAdminEditMode] = useState(false)
+  const [adjustments, setAdjustments] = useState<any[]>([])
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
   const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   // Sector Aggregate Data (for 'all' mode)
@@ -271,6 +274,18 @@ export default function DeductionsPage() {
             setStaffDues({ amount: '', notes: '' })
             setMedSupplies({ amount: '', notes: '' })
           }
+
+          // Fetch financial adjustments for deductions
+          const { data: adjData } = await supabase
+            .from('financial_adjustments')
+            .select('*, profiles(full_name)')
+            .eq('facility_id', selectedFacilityId)
+            .eq('month', selectedMonth)
+            .eq('record_type', 'deduction')
+            .order('created_at', { ascending: false })
+
+          if (adjData) setAdjustments(adjData)
+          else setAdjustments([])
         }
       } catch (err) {
         console.error('Error loading deductions data:', err)
@@ -836,20 +851,100 @@ export default function DeductionsPage() {
                   </div>
                 </div>
 
-                {canEditFinancials && (
-                  <div className="flex items-center justify-end pt-3 border-t border-gray-100">
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="btn btn-primary !min-h-[38px] !px-6 text-xs font-bold shadow-md bg-amber-800 hover:bg-amber-900"
-                    >
-                      {saving ? 'جاري الحفظ...' : '💾 حفظ وتثبيت مبالغ التجنيب'}
-                    </button>
+                <div className="flex flex-wrap items-center justify-between pt-3 border-t border-gray-100 gap-3">
+                  <div className="flex items-center gap-2">
+                    {(isClosed || !canEditFinancials) && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAdjustmentModal(true)}
+                        className="px-4 py-2 text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 rounded-xl hover:bg-amber-100 shadow-2xs transition flex items-center gap-1.5"
+                      >
+                        <span>⚖️</span>
+                        <span>إجراء تسوية مالية رسمية لشهر مقفل</span>
+                      </button>
+                    )}
                   </div>
-                )}
+
+                  {canEditFinancials && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="btn btn-primary !min-h-[38px] !px-6 text-xs font-bold shadow-md bg-amber-800 hover:bg-amber-900"
+                      >
+                        {saving ? 'جاري الحفظ...' : '💾 حفظ وتثبيت مبالغ التجنيب'}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </form>
+
+          {/* Adjustments Section if any exist */}
+          {adjustments.length > 0 && (
+            <div className="card !p-0 shadow-2xs border border-amber-200 overflow-hidden bg-amber-50/20">
+              <div className="p-3.5 bg-amber-100/60 border-b border-amber-200 flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-bold text-amber-900 flex items-center gap-2">
+                  <span>⚖️</span>
+                  <span>تسويات التجنيب والاستقطاعات المقيدة لهذا الشهر ({adjustments.length})</span>
+                </h4>
+                <span className="text-[10px] text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-md font-bold">
+                  سندات تسوية معتمدة
+                </span>
+              </div>
+              <div className="table-wrapper overflow-x-auto">
+                <table className="table w-full text-[11px]">
+                  <thead>
+                    <tr className="bg-amber-50/80 text-amber-900 font-bold border-b border-amber-200">
+                      <th className="py-2 px-3 text-right">الرقم المرجعي للتسوية</th>
+                      <th className="py-2 px-2 text-center">نوع التسوية</th>
+                      <th className="py-2 px-3 text-left">قيمة التسوية</th>
+                      <th className="py-2 px-3 text-right">السبب والسند الرسمي</th>
+                      <th className="py-2 px-2 text-center">المسؤول</th>
+                      <th className="py-2 px-2 text-center">التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-100 font-medium">
+                    {adjustments.map((adj) => (
+                      <tr key={adj.id} className="hover:bg-amber-50/50">
+                        <td className="py-2 px-3 font-mono font-bold text-blue-900">{adj.ref_number || '—'}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`badge text-[9px] font-bold ${adj.adjustment_type === 'decrease' ? 'badge-error' : 'badge-success'}`}>
+                            {adj.adjustment_type === 'decrease' ? 'تخفيض (-)' : adj.adjustment_type === 'increase' ? 'زيادة (+)' : 'تصنيف'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-left font-mono font-bold text-gray-900">
+                          {formatCurrency(adj.amount)}
+                        </td>
+                        <td className="py-2 px-3 text-gray-700">{adj.reason}</td>
+                        <td className="py-2 px-2 text-center text-gray-500 text-[10px]">
+                          {adj.profiles?.full_name || 'مسؤول النظام'}
+                        </td>
+                        <td className="py-2 px-2 text-center text-gray-400 font-mono text-[10px]">
+                          {adj.created_at ? new Date(adj.created_at).toLocaleDateString('ar-EG') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Adjustment Modal Dialog */}
+          <AdjustmentModal
+            isOpen={showAdjustmentModal}
+            onClose={() => setShowAdjustmentModal(false)}
+            facilityId={selectedFacilityId}
+            facilityName={facilities.find((f) => f.id === selectedFacilityId)?.name || facilityName || ''}
+            month={selectedMonth}
+            recordType="deduction"
+            onSuccess={() => {
+              setMsg({ type: 'success', text: 'تم تسجيل تسوية التجنيب بنجاح' })
+              setSelectedMonth((prev) => prev)
+            }}
+          />
         </div>
       )}
     </div>

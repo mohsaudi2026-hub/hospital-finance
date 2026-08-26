@@ -655,6 +655,54 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_adjustments: {
+        Row: {
+          id: string
+          ref_number: string | null
+          facility_id: string
+          month: string
+          record_type: 'revenue' | 'deduction' | 'procurement' | 'contract_payment'
+          original_record_id: string | null
+          original_ref_number: string | null
+          adjustment_type: 'increase' | 'decrease' | 'correction'
+          amount: number
+          reason: string
+          approved_by_admin: boolean
+          created_by: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          ref_number?: string | null
+          facility_id: string
+          month: string
+          record_type: 'revenue' | 'deduction' | 'procurement' | 'contract_payment'
+          original_record_id?: string | null
+          original_ref_number?: string | null
+          adjustment_type: 'increase' | 'decrease' | 'correction'
+          amount: number
+          reason: string
+          approved_by_admin?: boolean
+          created_by: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          ref_number?: string | null
+          facility_id?: string
+          month?: string
+          record_type?: 'revenue' | 'deduction' | 'procurement' | 'contract_payment'
+          original_record_id?: string | null
+          original_ref_number?: string | null
+          adjustment_type?: 'increase' | 'decrease' | 'correction'
+          amount?: number
+          reason?: string
+          approved_by_admin?: boolean
+          created_by?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       monthly_facility_summary: {

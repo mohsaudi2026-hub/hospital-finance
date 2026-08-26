@@ -9,6 +9,7 @@ import { FormSelect } from '@/components/ui/FormSelect'
 import { formatCurrency, formatCurrencyShort } from '@/lib/utils/currency'
 import { toFirstOfMonth, formatMonthArabic } from '@/lib/utils/date'
 import { SUPPORT_PHONE } from '@/lib/constants'
+import { AdjustmentModal } from '@/components/ui/AdjustmentModal'
 
 interface ProcurementOrder {
   id: string
@@ -75,6 +76,8 @@ export default function ProcurementPage() {
   const [isClosed, setIsClosed] = useState(false)
   const [deadlineInfo, setDeadlineInfo] = useState<MonthDeadlineInfo | null>(null)
   const [showSupportModal, setShowSupportModal] = useState(false)
+  const [adjustments, setAdjustments] = useState<any[]>([])
+  const [showAdjustmentModal, setShowAdjustmentModal] = useState(false)
 
   // Sector Aggregate Data (for 'all' mode)
   const [sectorFacilities, setSectorFacilities] = useState<FacilityProcurementRow[]>([])
@@ -253,6 +256,18 @@ export default function ProcurementPage() {
 
           if (data) setOrders(data as any)
           else setOrders([])
+
+          // Fetch financial adjustments for procurement
+          const { data: adjData } = await supabase
+            .from('financial_adjustments')
+            .select('*, profiles(full_name)')
+            .eq('facility_id', selectedFacilityId)
+            .eq('month', selectedMonth)
+            .eq('record_type', 'procurement')
+            .order('created_at', { ascending: false })
+
+          if (adjData) setAdjustments(adjData)
+          else setAdjustments([])
         }
       } catch (err) {
         console.error('Error loading procurement data:', err)
@@ -567,16 +582,29 @@ export default function ProcurementPage() {
               </button>
             )}
 
-            {canEditFinancials && (
-              <button
-                type="button"
-                onClick={() => setShowAddModal(true)}
-                className="btn btn-primary !min-h-[36px] !py-1 text-xs font-bold mr-auto flex items-center gap-1.5"
-              >
-                <span>➕</span>
-                <span>إضافة إذن تسليم مسعّر</span>
-              </button>
-            )}
+            <div className="flex items-center gap-2 mr-auto">
+              {(isClosed || !canEditFinancials) && (
+                <button
+                  type="button"
+                  onClick={() => setShowAdjustmentModal(true)}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition-all flex items-center gap-1.5"
+                >
+                  <span>⚖️</span>
+                  <span>إجراء تسوية مالية بعد الإقفال</span>
+                </button>
+              )}
+
+              {canEditFinancials && (
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(true)}
+                  className="btn btn-primary !min-h-[36px] !py-1 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <span>➕</span>
+                  <span>إضافة إذن تسليم مسعّر</span>
+                </button>
+              )}
+            </div>
           </div>
 
           {msg && (
@@ -599,27 +627,34 @@ export default function ProcurementPage() {
               <span className="text-base font-black text-teal-950 font-mono mt-0.5 block">
                 {formatCurrency(medTotal)}
               </span>
+              <span className="text-[9px] text-teal-700/80">
+                {orders.filter((o) => o.item_type === 'دواء').length} إذن
+              </span>
             </div>
             <div className="card !p-3 bg-indigo-50 border border-indigo-200">
-              <span className="text-[10px] font-bold text-indigo-900 block">مستلزمات طبية مسددة</span>
+              <span className="text-[10px] font-bold text-indigo-900 block">مستلزمات مسددة</span>
               <span className="text-base font-black text-indigo-950 font-mono mt-0.5 block">
                 {formatCurrency(suppliesTotal)}
+              </span>
+              <span className="text-[9px] text-indigo-700/80">
+                {orders.filter((o) => o.item_type === 'مستلزمات').length} إذن
               </span>
             </div>
           </div>
 
           {/* Orders Table */}
           <div className="card shadow-2xs border border-gray-200 !p-0 overflow-hidden">
-            <div className="p-3 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="section-title text-xs sm:text-sm font-bold">
-                أذون التسليم المسجلة لشهر {formatMonthArabic(selectedMonth)}
+            <div className="p-4 bg-gray-50/80 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="section-title text-sm font-bold flex items-center gap-2">
+                <span>📋</span>
+                <span>بيان أذون هيئة الشراء الموحد لشهر {formatMonthArabic(selectedMonth)}</span>
               </h3>
-              <span className="badge badge-gray text-xs font-mono">{orders.length} إذن</span>
+              <span className="text-xs font-mono text-gray-500 font-bold">{orders.length} إذن مسجل</span>
             </div>
 
             {orders.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-xs">
-                لا توجد أذون تسليم مسجلة لهذه المنشأة في هذا الشهر.
+              <div className="p-8 text-center text-gray-400 text-xs">
+                لا توجد أذون شراء مسجلة لهذه المنشأة في هذا الشهر
               </div>
             ) : (
               <div className="table-wrapper overflow-x-auto">
@@ -664,6 +699,71 @@ export default function ProcurementPage() {
               </div>
             )}
           </div>
+
+          {/* Adjustments Section if any exist */}
+          {adjustments.length > 0 && (
+            <div className="card !p-0 shadow-2xs border border-amber-200 overflow-hidden bg-amber-50/20">
+              <div className="p-3.5 bg-amber-100/60 border-b border-amber-200 flex items-center justify-between">
+                <h4 className="text-xs sm:text-sm font-bold text-amber-900 flex items-center gap-2">
+                  <span>⚖️</span>
+                  <span>تسويات أذون الشراء المقيدة لهذا الشهر ({adjustments.length})</span>
+                </h4>
+                <span className="text-[10px] text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded-md font-bold">
+                  سندات تسوية معتمدة
+                </span>
+              </div>
+              <div className="table-wrapper overflow-x-auto">
+                <table className="table w-full text-[11px]">
+                  <thead>
+                    <tr className="bg-amber-50/80 text-amber-900 font-bold border-b border-amber-200">
+                      <th className="py-2 px-3 text-right">الرقم المرجعي للتسوية</th>
+                      <th className="py-2 px-2 text-center">نوع التسوية</th>
+                      <th className="py-2 px-3 text-left">قيمة التسوية</th>
+                      <th className="py-2 px-3 text-right">السبب والسند الرسمي</th>
+                      <th className="py-2 px-2 text-center">المسؤول</th>
+                      <th className="py-2 px-2 text-center">التاريخ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-amber-100 font-medium">
+                    {adjustments.map((adj) => (
+                      <tr key={adj.id} className="hover:bg-amber-50/50">
+                        <td className="py-2 px-3 font-mono font-bold text-blue-900">{adj.ref_number || '—'}</td>
+                        <td className="py-2 px-2 text-center">
+                          <span className={`badge text-[9px] font-bold ${adj.adjustment_type === 'decrease' ? 'badge-error' : 'badge-success'}`}>
+                            {adj.adjustment_type === 'decrease' ? 'تخفيض (-)' : adj.adjustment_type === 'increase' ? 'زيادة (+)' : 'تصنيف'}
+                          </span>
+                        </td>
+                        <td className="py-2 px-3 text-left font-mono font-bold text-gray-900">
+                          {formatCurrency(adj.amount)}
+                        </td>
+                        <td className="py-2 px-3 text-gray-700">{adj.reason}</td>
+                        <td className="py-2 px-2 text-center text-gray-500 text-[10px]">
+                          {adj.profiles?.full_name || 'مسؤول النظام'}
+                        </td>
+                        <td className="py-2 px-2 text-center text-gray-400 font-mono text-[10px]">
+                          {adj.created_at ? new Date(adj.created_at).toLocaleDateString('ar-EG') : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Adjustment Modal Dialog */}
+          <AdjustmentModal
+            isOpen={showAdjustmentModal}
+            onClose={() => setShowAdjustmentModal(false)}
+            facilityId={selectedFacilityId}
+            facilityName={facilities.find((f) => f.id === selectedFacilityId)?.name || facilityName || ''}
+            month={selectedMonth}
+            recordType="procurement"
+            onSuccess={() => {
+              setMsg({ type: 'success', text: 'تم تسجيل تسوية إذن الشراء بنجاح' })
+              setSelectedMonth((prev) => prev)
+            }}
+          />
         </div>
       )}
 
